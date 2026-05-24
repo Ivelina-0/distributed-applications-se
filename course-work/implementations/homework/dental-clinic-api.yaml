@@ -1,0 +1,1147 @@
+openapi: 3.0.3
+
+info:
+  title: Dental Clinic Appointment Management API
+  version: 1.0.0
+  description: >
+    REST API документация за система за управление на часове в дентална клиника.
+    Системата позволява на пациенти да записват, редактират и отменят часове при стоматолог.
+    Администраторът управлява стоматолозите, пациентите, работните графици и записаните часове.
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Услуги за регистрация и вход в системата
+  - name: Patients
+    description: Услуги за управление на пациенти
+  - name: Dentists
+    description: Услуги за управление на стоматолози
+  - name: Schedules
+    description: Услуги за управление на работни графици
+  - name: Appointments
+    description: Услуги за управление на часове за преглед
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register new user
+      description: Регистрира нов потребител в системата.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              fullName: Maria Ivanova
+              email: maria@example.com
+              password: Password123
+              phoneNumber: "+359888123456"
+              role: Patient
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "400":
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      description: Позволява вход в системата и връща JWT token.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: maria@example.com
+              password: Password123
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "400":
+          description: Missing or invalid login data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /patients:
+    get:
+      tags:
+        - Patients
+      summary: Get all patients
+      description: Връща списък с пациенти. Достъпно само за администратор.
+      operationId: getPatients
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Търсене по име, имейл или телефон.
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: Номер на страница.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          description: Брой записи на страница.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: sortBy
+          in: query
+          required: false
+          description: Поле за сортиране.
+          schema:
+            type: string
+            enum: [fullName, email, phoneNumber]
+        - name: sortOrder
+          in: query
+          required: false
+          description: Посока на сортиране.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientListResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /patients/{id}:
+    get:
+      tags:
+        - Patients
+      summary: Get patient by id
+      description: Връща информация за конкретен пациент.
+      operationId: getPatientById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "200":
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        "404":
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Patients
+      summary: Update patient
+      description: Редактира данни за пациент.
+      operationId: updatePatient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientRequest'
+      responses:
+        "200":
+          description: Patient updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+        "400":
+          description: Invalid patient data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Patients
+      summary: Delete patient
+      description: Изтрива пациент. Достъпно само за администратор.
+      operationId: deletePatient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "204":
+          description: Patient deleted successfully
+        "403":
+          description: Forbidden access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /patients/{id}/history:
+    get:
+      tags:
+        - Patients
+      summary: Get patient visit history
+      description: Връща история на посещенията на пациент.
+      operationId: getPatientHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+        - name: fromDate
+          in: query
+          required: false
+          description: Начална дата за филтриране.
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          required: false
+          description: Крайна дата за филтриране.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Patient appointment history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentHistory'
+        "400":
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dentists:
+    get:
+      tags:
+        - Dentists
+      summary: Get all dentists
+      description: Връща списък със стоматолози.
+      operationId: getDentists
+      parameters:
+        - name: name
+          in: query
+          required: false
+          description: Търсене по име на стоматолог.
+          schema:
+            type: string
+        - name: specialty
+          in: query
+          required: false
+          description: Търсене по специалност.
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        "200":
+          description: List of dentists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DentistListResponse'
+
+    post:
+      tags:
+        - Dentists
+      summary: Create dentist
+      description: Добавя нов стоматолог. Достъпно само за администратор.
+      operationId: createDentist
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DentistRequest'
+            example:
+              fullName: Dr. Georgi Georgiev
+              specialty: Orthodontics
+              phoneNumber: "+359887654321"
+              email: georgiev@example.com
+      responses:
+        "201":
+          description: Dentist created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dentist'
+        "400":
+          description: Invalid dentist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: Forbidden access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Dentist email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /dentists/{id}:
+    get:
+      tags:
+        - Dentists
+      summary: Get dentist by id
+      description: Връща информация за конкретен стоматолог.
+      operationId: getDentistById
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "200":
+          description: Dentist details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dentist'
+        "404":
+          description: Dentist not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Dentists
+      summary: Update dentist
+      description: Редактира данни за стоматолог. Достъпно само за администратор.
+      operationId: updateDentist
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DentistRequest'
+      responses:
+        "200":
+          description: Dentist updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dentist'
+        "400":
+          description: Invalid dentist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Dentist not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Dentists
+      summary: Delete dentist
+      description: Изтрива стоматолог. Не може да се изтрие стоматолог с бъдещи записани часове.
+      operationId: deleteDentist
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "204":
+          description: Dentist deleted successfully
+        "404":
+          description: Dentist not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Dentist has future appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules:
+    get:
+      tags:
+        - Schedules
+      summary: Get dentist schedules
+      description: Връща работните графици на стоматолозите.
+      operationId: getSchedules
+      parameters:
+        - name: dentistId
+          in: query
+          required: false
+          description: Филтър по стоматолог.
+          schema:
+            type: integer
+            minimum: 1
+        - name: date
+          in: query
+          required: false
+          description: Филтър по дата.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Schedule'
+
+    post:
+      tags:
+        - Schedules
+      summary: Create schedule
+      description: Добавя работен график за стоматолог. Достъпно само за администратор.
+      operationId: createSchedule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequest'
+            example:
+              dentistId: 1
+              date: "2026-06-10"
+              startTime: "09:00"
+              endTime: "17:00"
+              isAvailable: true
+      responses:
+        "201":
+          description: Schedule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        "400":
+          description: Invalid schedule data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Overlapping schedule exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules/{id}:
+    put:
+      tags:
+        - Schedules
+      summary: Update schedule
+      description: Редактира работен график.
+      operationId: updateSchedule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleRequest'
+      responses:
+        "200":
+          description: Schedule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        "400":
+          description: Invalid schedule data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Schedules
+      summary: Delete schedule
+      description: Изтрива работен график, ако няма активни записани часове към него.
+      operationId: deleteSchedule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "204":
+          description: Schedule deleted successfully
+        "404":
+          description: Schedule not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Schedule has active appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /appointments:
+    get:
+      tags:
+        - Appointments
+      summary: Get appointments
+      description: Връща списък със записани часове.
+      operationId: getAppointments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dentistId
+          in: query
+          required: false
+          description: Филтър по стоматолог.
+          schema:
+            type: integer
+            minimum: 1
+        - name: patientId
+          in: query
+          required: false
+          description: Филтър по пациент.
+          schema:
+            type: integer
+            minimum: 1
+        - name: date
+          in: query
+          required: false
+          description: Филтър по дата.
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          required: false
+          description: Филтър по статус.
+          schema:
+            $ref: '#/components/schemas/AppointmentStatus'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [appointmentDate, appointmentTime, dentistName, patientName, status]
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentListResponse'
+
+    post:
+      tags:
+        - Appointments
+      summary: Create appointment
+      description: Записва нов час за посещение при стоматолог.
+      operationId: createAppointment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+            example:
+              patientId: 1
+              dentistId: 2
+              appointmentDate: "2026-06-15"
+              appointmentTime: "10:30"
+              reason: "Профилактичен преглед"
+      responses:
+        "201":
+          description: Appointment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        "400":
+          description: Invalid appointment data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Appointment time is already booked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /appointments/{id}:
+    get:
+      tags:
+        - Appointments
+      summary: Get appointment by id
+      description: Връща информация за конкретен час.
+      operationId: getAppointmentById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "200":
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        "404":
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Appointments
+      summary: Update appointment
+      description: Редактира съществуващ час.
+      operationId: updateAppointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+      responses:
+        "200":
+          description: Appointment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        "400":
+          description: Invalid appointment data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: New appointment time is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Appointments
+      summary: Cancel appointment
+      description: Отменя записан час.
+      operationId: cancelAppointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPathParameter'
+      responses:
+        "200":
+          description: Appointment cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "404":
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: Completed appointment cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token used for protected endpoints.
+
+  parameters:
+    IdPathParameter:
+      name: id
+      in: path
+      required: true
+      description: Unique identifier of the resource.
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - fullName
+        - email
+        - password
+        - phoneNumber
+        - role
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+        phoneNumber:
+          type: string
+          pattern: '^\\+?[0-9]{8,15}$'
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token.
+        userId:
+          type: integer
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    UserRole:
+      type: string
+      enum:
+        - Admin
+        - Patient
+        - Dentist
+
+    PatientRequest:
+      type: object
+      required:
+        - fullName
+        - email
+        - phoneNumber
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        phoneNumber:
+          type: string
+          pattern: '^\\+?[0-9]{8,15}$'
+        birthDate:
+          type: string
+          format: date
+
+    Patient:
+      allOf:
+        - $ref: '#/components/schemas/PatientRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+
+    PatientListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Patient'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    DentistRequest:
+      type: object
+      required:
+        - fullName
+        - specialty
+        - phoneNumber
+        - email
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        specialty:
+          type: string
+          minLength: 2
+          maxLength: 100
+        phoneNumber:
+          type: string
+          pattern: '^\\+?[0-9]{8,15}$'
+        email:
+          type: string
+          format: email
+          maxLength: 150
+
+    Dentist:
+      allOf:
+        - $ref: '#/components/schemas/DentistRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+
+    DentistListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dentist'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    ScheduleRequest:
+      type: object
+      required:
+        - dentistId
+        - date
+        - startTime
+        - endTime
+      properties:
+        dentistId:
+          type: integer
+          minimum: 1
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "09:00"
+        endTime:
+          type: string
+          pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "17:00"
+        isAvailable:
+          type: boolean
+          default: true
+
+    Schedule:
+      allOf:
+        - $ref: '#/components/schemas/ScheduleRequest'
+        - type: object
+          properties:
+            id:
+              type: integer
+
+    AppointmentRequest:
+      type: object
+      required:
+        - patientId
+        - dentistId
+        - appointmentDate
+        - appointmentTime
+      properties:
+        patientId:
+          type: integer
+          minimum: 1
+        dentistId:
+          type: integer
+          minimum: 1
+        appointmentDate:
+          type: string
+          format: date
+        appointmentTime:
+          type: string
+          pattern: '^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "10:30"
+        reason:
+          type: string
+          maxLength: 500
+
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        patientName:
+          type: string
+        patientPhone:
+          type: string
+        dentistId:
+          type: integer
+        dentistName:
+          type: string
+        appointmentDate:
+          type: string
+          format: date
+        appointmentTime:
+          type: string
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+
+    AppointmentStatus:
+      type: string
+      enum:
+        - Scheduled
+        - Cancelled
+        - Completed
+
+    AppointmentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Appointment'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    AppointmentHistory:
+      type: object
+      properties:
+        appointmentDate:
+          type: string
+          format: date
+        appointmentTime:
+          type: string
+        dentistName:
+          type: string
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+        reason:
+          type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Operation completed successfully.
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Invalid input data
+        errors:
+          type: array
+          items:
+            type: string
+          example:
+            - Email is required
+            - Phone number is invalid
